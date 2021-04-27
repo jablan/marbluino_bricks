@@ -45,6 +45,7 @@
 #define BALLSIZE 4
 #define BALL_RADIUS BALLSIZE/2
 #define DELAY 50
+#define START_WAIT_CYCLES 20
 #define BATONWIDTH 3
 #define BATON_SPEED_FACTOR 10.0
 #define BALL_SPEED_FACTOR 2.0
@@ -72,6 +73,7 @@ float batonX;
 char bricks[BRICK_ROWS][BRICK_COLS];
 unsigned long lastMillis = 0;
 uint8_t lives;
+uint8_t startDelay;
 
 uint16_t tonesFlag[][2] = {{698, 1}, {880, 1}, {1047, 1}, {0, 0}};
 uint16_t tonesLevel[][2] = {{1047, 1}, {988, 1}, {1047, 1}, {988, 1}, {1047, 1}, {0, 0}};
@@ -252,6 +254,7 @@ void initGame(bool resetLives) {
   ball.y = BATONWIDTH + BALLSIZE / 2;
   speed.x = random(100) / 100.0 - 0.5;
   calculateYSpeed();
+  startDelay = START_WAIT_CYCLES;
 }
 
 void gameOver(void) {
@@ -334,12 +337,16 @@ void setup(void) {
 void loop(void) {
   if (millis() - lastMillis < DELAY) return;
   lastMillis = millis();
+  drawGame();
+  if (startDelay > 0) {
+    startDelay--;
+    return;
+  }
   checkLifeLost();
   if (points == BRICK_ROWS * BRICK_COLS) gameEnd();
   batonCollision();
   brickCollision();
   wallCollision();
-  drawGame();
   updateMovement();
 
   playSound();
