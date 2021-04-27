@@ -47,7 +47,7 @@
 #define DELAY 50
 #define BATONWIDTH 3
 #define BATON_SPEED_FACTOR 10.0
-#define BALL_SPEED_FACTOR 3.0
+#define BALL_SPEED_FACTOR 2.0
 #define BRICK_SPACING 2
 #define BRICK_COLS 5
 #define BRICK_ROWS 3
@@ -66,10 +66,12 @@ struct upoint {
 };
 
 uint8_t max_x, max_y, points;
-struct fpoint ball, speed = {0.0, 0.0};
-uint8_t batonLength = 20, brickHeight, brickWidth;
+struct fpoint ball, speed;
+uint8_t batonLength = 15, brickHeight, brickWidth;
 float batonX;
 char bricks[BRICK_ROWS][BRICK_COLS];
+unsigned long lastMillis = 0;
+uint8_t lives;
 
 uint16_t tonesFlag[][2] = {{698, 1}, {880, 1}, {1047, 1}, {0, 0}};
 uint16_t tonesLevel[][2] = {{1047, 1}, {988, 1}, {1047, 1}, {988, 1}, {1047, 1}, {0, 0}};
@@ -105,9 +107,8 @@ void drawGame(void) {
   // draw marble
   u8g2.drawDisc(ball.x, ball.y, BALLSIZE/2);
   // draw baton
-  u8g2.drawBox(batonX - batonLength / 2, 0, batonLength, BATONWIDTH);
+  u8g2.drawRBox(batonX - batonLength / 2, 0, batonLength, BATONWIDTH, 1);
   // draw bricks
-
   for (short row = 0; row < BRICK_ROWS; row++) {
     for (short col = 0; col < BRICK_COLS; col++) {
       if (bricks[row][col] > 0) {
@@ -116,12 +117,12 @@ void drawGame(void) {
     }
   }
 
-  // write points and time
+  // write points and lives
   itoa(points, buf, 10);
   u8g2.drawStr(0, 5, buf);
-//  itoa(timer/10, buf, 10);
-//  uint8_t width = u8g2.getStrWidth(buf);
-//  u8g2.drawStr(max_x-width, 5, buf);
+  for (int i = 0; i < lives; i++) {
+    u8g2.drawDisc(max_x - i * 5 - 5, 2, 1);
+  }
   u8g2.sendBuffer();
 }
 
@@ -194,7 +195,6 @@ void wallCollision() {
 }
 
 void brickCollision() {
-  // u8g2.drawFrame(col * (brickWidth + BRICK_SPACING), max_y - (row * (brickHeight + BRICK_SPACING)) - brickHeight, brickWidth, brickHeight);
   for (short row = 0; row < BRICK_ROWS; row++) {
     short brickTop = max_y - (row * (brickHeight + BRICK_SPACING)) - brickHeight;
     short brickBottom = brickTop + brickHeight;
@@ -218,6 +218,17 @@ void brickCollision() {
   }
 }
 
+void checkLifeLost() {
+  if (ball.y < 0) {
+    if (lives == 0) {
+      gameOver();
+    } else {
+      lives--;
+      initGame(false);
+    }
+  }
+}
+
 void melodySync(uint16_t (*melody)[2]) {
   // this is played synchronously
   for (uint8_t i = 0; melody[i][1] > 0; i++) {
@@ -226,11 +237,14 @@ void melodySync(uint16_t (*melody)[2]) {
   }
 }
 
-void initGame() {
-  points = 0;
-  for (short row = 0; row < BRICK_ROWS; row++) {
-    for (short col = 0; col < BRICK_COLS; col++) {
-      bricks[row][col] = 1;
+void initGame(bool resetLives) {
+  if (resetLives) {
+    points = 0;
+    lives = 2;
+    for (short row = 0; row < BRICK_ROWS; row++) {
+      for (short col = 0; col < BRICK_COLS; col++) {
+        bricks[row][col] = 1;
+      }
     }
   }
   batonX = max_x / 2.0;
@@ -245,12 +259,13 @@ void gameOver(void) {
   sprintf(msg, "score: %d", points);
   showPopup("GAME OVER", msg);
   melodySync(tonesSad);
-  initGame();
+  initGame(true);
 }
 
 void gameEnd(void) {
   showPopup("You won", "Good job!");
   melodySync(tonesLevel);
+  initGame(true);
 }
 
 void updateMovement(void) {
@@ -313,11 +328,13 @@ void setup(void) {
   brickWidth = (max_x + BRICK_SPACING) / BRICK_COLS - BRICK_SPACING;
   brickHeight = max_y / 2 / BRICK_ROWS - BRICK_SPACING;
 
-  initGame();
+  initGame(true);
 }
 
 void loop(void) {
-  if (ball.y < 0) gameOver();
+  if (millis() - lastMillis < DELAY) return;
+  lastMillis = millis();
+  checkLifeLost();
   if (points == BRICK_ROWS * BRICK_COLS) gameEnd();
   batonCollision();
   brickCollision();
@@ -326,5 +343,4 @@ void loop(void) {
   updateMovement();
 
   playSound();
-  delay(DELAY);
 }
