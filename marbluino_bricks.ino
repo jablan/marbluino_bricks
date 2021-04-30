@@ -50,8 +50,10 @@
 #define BATON_SPEED_FACTOR 10.0
 #define BALL_SPEED_FACTOR 2.0
 #define BRICK_SPACING 2
+#define BRICK_HEIGHT 4
 #define BRICK_COLS 5
 #define BRICK_ROWS 3
+#define HEADER_HEIGHT 6
 
 U8G2_PCD8544_84X48_F_4W_HW_SPI u8g2(U8G2_R0, DISPLAY_CS_PIN, DISPLAY_DC_PIN, DISPLAY_RS_PIN);
 AccelerometerMMA8451 acc(0);
@@ -68,7 +70,7 @@ struct upoint {
 
 uint8_t max_x, max_y, points;
 struct fpoint ball, speed;
-uint8_t batonLength = 15, brickHeight, brickWidth;
+uint8_t batonLength = 15, brickWidth;
 float batonX;
 char bricks[BRICK_ROWS][BRICK_COLS];
 unsigned long lastMillis = 0;
@@ -107,14 +109,14 @@ void drawGame(void) {
   static char buf[12];
   u8g2.clearBuffer();
   // draw marble
-  u8g2.drawDisc(ball.x, ball.y, BALLSIZE/2);
+  u8g2.drawDisc(ball.x, max_y - ball.y, BALLSIZE/2);
   // draw baton
-  u8g2.drawRBox(batonX - batonLength / 2, 0, batonLength, BATONWIDTH, 1);
+  u8g2.drawRBox(batonX - batonLength / 2, max_y - BATONWIDTH, batonLength, BATONWIDTH, 1);
   // draw bricks
   for (short row = 0; row < BRICK_ROWS; row++) {
     for (short col = 0; col < BRICK_COLS; col++) {
       if (bricks[row][col] > 0) {
-        u8g2.drawFrame(col * (brickWidth + BRICK_SPACING), max_y - (row * (brickHeight + BRICK_SPACING)) - brickHeight, brickWidth, brickHeight);
+        u8g2.drawFrame(col * (brickWidth + BRICK_SPACING), row * (BRICK_HEIGHT + BRICK_SPACING) + HEADER_HEIGHT, brickWidth, BRICK_HEIGHT);
       }
     }
   }
@@ -198,8 +200,8 @@ void wallCollision() {
 
 void brickCollision() {
   for (short row = 0; row < BRICK_ROWS; row++) {
-    short brickTop = max_y - (row * (brickHeight + BRICK_SPACING)) - brickHeight;
-    short brickBottom = brickTop + brickHeight;
+    short brickTop = max_y - (row * (BRICK_HEIGHT + BRICK_SPACING)) - BRICK_HEIGHT - HEADER_HEIGHT;
+    short brickBottom = brickTop + BRICK_HEIGHT;
     if (ball.y < brickTop - BALL_RADIUS || ball.y > brickBottom + BALL_RADIUS) continue;
     for (short col = 0; col < BRICK_COLS; col++) {
       if (bricks[row][col] == 0) continue;
@@ -329,7 +331,7 @@ void setup(void) {
   max_x = u8g2.getDisplayWidth();
   max_y = u8g2.getDisplayHeight();
   brickWidth = (max_x + BRICK_SPACING) / BRICK_COLS - BRICK_SPACING;
-  brickHeight = max_y / 2 / BRICK_ROWS - BRICK_SPACING;
+//  BRICK_HEIGHT = max_y / 2 / BRICK_ROWS - BRICK_SPACING;
 
   initGame(true);
 }
